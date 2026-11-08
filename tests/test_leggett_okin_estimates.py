@@ -23,6 +23,7 @@ from pytest_homeassistant.common import MockConfigEntry
 from custom_components.adjustable_bed import position_estimate as pe
 from custom_components.adjustable_bed.beds.leggett.okin import LeggettOkinController
 from custom_components.adjustable_bed.codec import okin_nframe as codec
+from custom_components.adjustable_bed.codec.okin_nframe import STATUS_UUID
 from custom_components.adjustable_bed.const import (
     BED_TYPE_LEGGETT_OKIN,
     CONF_BED_TYPE,
@@ -434,5 +435,34 @@ async def test_connecting_and_gaps_between_moves_are_not_travel(
         assert clock.time() - started > 10
         assert bed.motors["lumbar"].percent == pytest.approx(20.0)  # 2.6 s of 13 s
         assert bed.motors["lumbar"].moves_since_reference == 2
+    finally:
+        await pe.async_unload_position_estimates(hass, coordinator.entry.entry_id)
+
+
+def _status(mask: int) -> bytearray:
+    """A CU170 status frame: the mask twice, then the trailing bytes."""
+    word = mask.to_bytes(4, "big")
+    return bytearray(b"\x09\x0b" + word + word + b"\xff" * 10)
+
+
+async def test_the_sleep_timer_ending_makes_estimates_unknown(
+    make_runtime,  # noqa: F811 - pytest fixture argument
+    clock,  # noqa: F811 - pytest fixture argument
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the box's sleep timer runs out it recalls a favorite on its own."""
+    hass, coordinator, _frames, bed = await _estimated_runtime(make_runtime, clock, monkeypatch)
+    controller = coordinator.controller
+    status = SimpleNamespace(uuid=STATUS_UUID)
+    try:
+        bed.set_reference()
+        controller._handle_notification(status, _status(0x00020000))
+        controller._handle_notification(status, _status(0x00820000))
+        controller._handle_notification(status, _status(0x00820000))
+        # Arming the timer and the light reports move nothing.
+        assert bed.tracking(MOTORS)
+        controller._handle_notification(status, _status(0x00020000))
+        assert all(bed.state(motor) is EstimateState.UNKNOWN for motor in MOTORS)
+        assert bed.motors["head"].reason is pe.EstimateReason.HARDWARE_PRESET
     finally:
         await pe.async_unload_position_estimates(hass, coordinator.entry.entry_id)

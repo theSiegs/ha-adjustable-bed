@@ -39,6 +39,7 @@ from ...codec.okin_nframe import (
 )
 from ...const import CONF_LEGGETT_APP_PROFILE, DEVICE_INFO_READ_TIMEOUT, LEGGETT_APP_DEFAULT_PROFILE
 from ...controller_state import StateKey
+from ...position_estimate import notify_untracked_move
 from ...profiles.okin_nframe import (
     LEGGETT_FLAT_HOLD_MS,
     LEGGETT_PROFILES,
@@ -643,6 +644,15 @@ class LeggettOkinController(ProfileExecution[OkinNFrameProfile], BedController):
             mask = parse_receipt(payload)
             if mask is None:
                 return
+            if (
+                self._cu170_status_mask is not None
+                and self._cu170_status_mask & CU170_SLEEP_MASK
+                and not mask & CU170_SLEEP_MASK
+            ):
+                # The sleep timer ended: when it ran out, the box recalled its
+                # favorite on its own. A cancel looks the same and is treated
+                # the same, so no estimate outlives an untimed recall.
+                notify_untracked_move(self._coordinator)
             self._cu170_status_mask = mask
             self._light_is_on = bool(mask & CU170_LIGHT_MASK)
             self._notification_led_mask = mask

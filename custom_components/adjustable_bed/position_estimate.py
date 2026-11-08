@@ -683,6 +683,13 @@ def notify_connection_lost(coordinator: object) -> None:
         bed.abandon_moves(EstimateReason.CONNECTION_LOST)
 
 
+def notify_untracked_move(coordinator: object) -> None:
+    """Controller hook: the bed reported a movement the integration did not start."""
+    bed = _bed_for_coordinator(coordinator)
+    if bed is not None:
+        bed.invalidate(EstimateReason.HARDWARE_PRESET)
+
+
 def notify_release_failed(coordinator: object) -> None:
     """Controller hook: a movement cleanup STOP failed without raising."""
     bed = _bed_for_coordinator(coordinator)

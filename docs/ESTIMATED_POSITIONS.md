@@ -123,6 +123,9 @@ bed stopped:
 - a hardware preset or a memory recall, including the bed's Flat preset
   (except a completed Flat on a bed whose Flat proves flat, below);
 - any movement the integration does not time;
+- on Leggett Okin Prodigy CE, the bed's sleep timer ending while connected,
+  because when it runs out the box recalls a favorite on its own (a cancelled
+  timer looks the same);
 - pressing **I used the remote**.
 
 The integration never sees the physical remote or the bed's own app. If you use
