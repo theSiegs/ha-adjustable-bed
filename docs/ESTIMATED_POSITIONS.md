@@ -104,6 +104,14 @@ actually did and your calibrated times in the v5 beta feedback issue.
 | Unknown | No trustworthy estimate | `unknown` | Paused |
 | Not calibrated | Enabled, but a travel time is missing. Finish the calibration in Settings | `unavailable` | Paused |
 
+Moving a motor to exactly 0% or 100%, with the slider or a saved position,
+runs its full travel in that direction plus the **Lower to flat** margin
+(1.2 times the travel plus 1 second), however close the estimate already is.
+The motor stops at its end stop, so the estimate ends exactly there and the
+drift of earlier moves is gone. Reaching 0% this way sets the motor's reference
+again, unless a STOP cut the move short. It takes longer than a move between
+the ends.
+
 Hold-to-move up and down always works, in every state. It moves relative to
 where the bed is and needs no estimate. Pressing STOP during a move keeps the
 estimate tracking, because the integration knows when the move ended.

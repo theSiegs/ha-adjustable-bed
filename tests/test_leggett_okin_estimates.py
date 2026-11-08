@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import itertools
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -331,3 +332,76 @@ async def test_the_flat_button_references_the_bed(
     flat.assert_awaited_once()
     assert bed.tracking(["feet", "lumbar", "pillow"])
     assert bed.state("head") is EstimateState.UNKNOWN
+
+
+class _Parent:
+    """Stands in for the loaded bed: timed moves end at once, STOP bumps the epoch."""
+
+    def __init__(self, bed: pe.BedEstimate) -> None:
+        self._bed = bed
+        self._command_scheduler = SimpleNamespace(stop_epoch=0)
+        self.moves: list[tuple[str, str, int]] = []
+        self.stop_after_s: float | None = None
+
+    async def timed_move(
+        self, _targets: object, motor: str, direction: str, duration_ms: int
+    ) -> None:
+        self.moves.append((motor, direction, duration_ms))
+        token = self._bed.begin_move((motor,))
+        seconds = duration_ms / 1000
+        if self.stop_after_s is not None:
+            seconds = self.stop_after_s
+            self._command_scheduler.stop_epoch += 1
+        self._bed.end_move(token, direction, seconds)
+
+
+async def _end_stop_bed(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> tuple[pe.PositionEstimates, pe.BedEstimate, _Parent]:
+    manager = await pe.async_setup_position_estimates(hass, "entry", ((FLOW_ADDRESS, None),))
+    bed = manager.beds[FLOW_ADDRESS]
+    bed.configure(dict(CU170_TIMES))
+    bed.set_reference()
+    parent = _Parent(bed)
+    hass.data[DOMAIN]["entry"] = parent
+    monkeypatch.setattr(
+        "custom_components.adjustable_bed.services._async_timed_move", parent.timed_move
+    )
+    return manager, bed, parent
+
+
+async def test_an_end_target_overruns_to_the_end_stop(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """0% and 100% run the full travel plus the margin, whatever the estimate says."""
+    manager, bed, parent = await _end_stop_bed(hass, monkeypatch)
+    bed.motors["feet"].percent = 40.0
+    assert await pe.async_move_bed(hass, manager, bed, {"feet": 100.0})
+    bed.motors["head"].percent = 60.0
+    bed.motors["head"].moves_since_reference = 3
+    assert await pe.async_move_bed(hass, manager, bed, {"head": 0.0})
+    # A target between the ends keeps the exact plan.
+    assert await pe.async_move_bed(hass, manager, bed, {"lumbar": 50.0})
+    assert parent.moves == [
+        ("feet", "up", 25600),  # 20.5 s x 1.2 + 1 s
+        ("head", "down", 44200),  # 36 s x 1.2 + 1 s
+        ("lumbar", "up", 6500),
+    ]
+    assert bed.motors["feet"].percent == 100.0
+    assert bed.motors["head"].percent == 0.0
+    # Reaching the bottom end stop re-references the motor.
+    assert bed.motors["head"].moves_since_reference == 0
+    assert bed.motors["lumbar"].percent == pytest.approx(50.0)
+    assert bed.tracking(MOTORS)
+
+
+async def test_a_stopped_overrun_does_not_re_reference(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager, bed, parent = await _end_stop_bed(hass, monkeypatch)
+    bed.motors["pillow"].percent = 10.0
+    parent.stop_after_s = 5.0
+    await pe.async_move_bed(hass, manager, bed, {"pillow": 0.0})
+    # The estimate reaches 0%, but only a full overrun proves the end stop.
+    assert bed.motors["pillow"].percent == 0.0
+    assert bed.motors["pillow"].moves_since_reference == 1

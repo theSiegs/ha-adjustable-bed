@@ -208,7 +208,8 @@ async def test_tv_lift_estimate_slider_saved_position_and_reference(
         )
         await call(hass, "recall_position", position="TV open")
 
-    assert moves == [("tv_lift_up", 10000), ("tv_lift_down", 5000), ("tv_lift_up", 10000)]
+    # Lowering to 0% runs the full 10 s down plus the end-stop margin.
+    assert moves == [("tv_lift_up", 10000), ("tv_lift_down", 13000), ("tv_lift_up", 10000)]
     assert hass.states.get(lift_id).state == "50"
     await call(hass, "mark_position_unknown")
     assert hass.states.get(lift_id).state == STATE_UNKNOWN

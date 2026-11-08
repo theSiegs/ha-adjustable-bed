@@ -984,6 +984,11 @@ async def async_move_bed(
     Returns False when STOP left a motor short of its target, and raises when a
     movement left an estimate unknown. Movements are ordinary timed moves
     through the coordinator, so each protocol keeps its cadence and STOP.
+
+    A target of 0% or 100% runs the full travel plus the end-stop margin, so the
+    motor reaches its end stop whatever drift the estimate has collected, and
+    the estimate ends exactly there. Reaching 0% that way re-references the
+    motor, unless a STOP cut the move short.
     """
     motors = [motor for motor in targets if motor in bed.motors]
     if not owned:
@@ -995,7 +1000,11 @@ async def async_move_bed(
         if _stop_epoch(parent, bed) != epoch:
             return False
         estimate = bed.motors[motor]
-        plan = estimate.plan(targets[motor])
+        target = _clamp(targets[motor])
+        plan = estimate.plan(target)
+        end_stop = plan is not None and target in (0.0, 100.0)
+        if plan is not None and end_stop:
+            plan = (plan[0], end_stop_seconds(estimate, plan[0]))
         if plan is not None and plan[1] * 1000 >= MIN_MOVE_MS:
             await _async_timed_move(parent, bed, motor, plan[0], plan[1])
         if estimate.state is not EstimateState.TRACKING:
@@ -1004,6 +1013,13 @@ async def async_move_bed(
                 translation_domain=DOMAIN,
                 translation_key="position_estimate_move_failed",
             )
+        if (
+            end_stop
+            and target == 0.0
+            and estimate.percent == 0.0
+            and _stop_epoch(parent, bed) == epoch
+        ):
+            bed.set_reference([motor])
         if not _arrived(bed, motor, targets[motor]):
             return False
     return True
