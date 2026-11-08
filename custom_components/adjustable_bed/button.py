@@ -54,7 +54,9 @@ from .paired_coordinator import (
     entity_runtimes,
 )
 from .position_estimate import (
+    MotorCommand,
     invalidate_on_command,
+    track_flat_preset,
     track_motor_command,
 )
 from .position_estimate_entities import async_setup_estimate_buttons
@@ -759,6 +761,13 @@ def _moves_untimed(key: str, *, held: bool = False) -> bool:
     return held or key.startswith("preset_")
 
 
+def _untimed_press(hass: HomeAssistant, key: str, press_fn: MotorCommand) -> MotorCommand:
+    """Mark estimates unknown for an untimed preset; a declared Flat re-references them."""
+    if key == "preset_flat":
+        return track_flat_preset(hass, press_fn)
+    return invalidate_on_command(hass, press_fn)
+
+
 @records_entities(Platform.BUTTON)
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -1302,7 +1311,7 @@ class AdjustableBedButton(AdjustableBedEntity, ButtonEntity):
                 return
             press_fn = self.entity_description.press_fn
             if _moves_untimed(self.entity_description.key):
-                press_fn = invalidate_on_command(self.hass, press_fn)
+                press_fn = _untimed_press(self.hass, self.entity_description.key, press_fn)
             await self._coordinator.async_execute_controller_command(
                 press_fn,
                 cancel_running=self.entity_description.cancel_movement,
@@ -1528,7 +1537,7 @@ class PairedBedCombinedButton(RenamesInPlace, PlacedInCard, ButtonEntity):
                     controller.validate_memory_recall(description.memory_slot)
         press_fn = description.press_fn
         if _moves_untimed(description.key):
-            press_fn = invalidate_on_command(self.hass, press_fn)
+            press_fn = _untimed_press(self.hass, description.key, press_fn)
         await self._coordinator.async_execute_controller_command(
             press_fn,
             side=SIDE_BOTH,

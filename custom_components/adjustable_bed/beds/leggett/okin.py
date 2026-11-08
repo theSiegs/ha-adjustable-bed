@@ -422,6 +422,15 @@ class LeggettOkinController(ProfileExecution[OkinNFrameProfile], BedController):
             return {}
         return {spec.key: (spec.key,) for spec in self.motor_control_specs}
 
+    @property
+    def flat_preset_references_estimates(self) -> bool:
+        """Prodigy CE's Flat is a held key that drives every motor down.
+
+        It streams for 30 s, longer than any calibrated lowering, and the box
+        stops when the frames stop, so a Flat that ran to its end is flat.
+        """
+        return self._app_profile == "prodigy4"
+
     def _available_characteristic_uuids(self) -> frozenset[str] | None:
         """Return discovered characteristic UUIDs, or None before discovery."""
         client = self.client

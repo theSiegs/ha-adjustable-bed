@@ -112,7 +112,8 @@ These make an estimate unknown, because the integration cannot tell where the
 bed stopped:
 
 - a movement write that fails, or a connection that drops mid-move;
-- a hardware preset or a memory recall, including the bed's Flat preset;
+- a hardware preset or a memory recall, including the bed's Flat preset
+  (except a completed Flat on a bed whose Flat proves flat, below);
 - any movement the integration does not time;
 - pressing **I used the remote**.
 
@@ -132,6 +133,17 @@ Flat is the only reference. To recover:
   (`lower_to_flat`). The motors lower for their full travel time plus a margin.
   Check that the bed is flat, then set the reference. The bed only lowers when
   you ask, and it never confirms flat by itself.
+- **Press the bed's Flat**, on a bed whose Flat holds every motor down for a
+  known time. Only Leggett Okin Prodigy CE declares this: its Flat streams for
+  30 seconds. When Flat runs to its end, each motor whose lowering fits in that
+  time is set to 0%, as if you had set its reference. A motor that was tracking
+  only has to lower from its estimate; any other motor has to lower from the
+  top. Both use the calibrated lowering time plus the same margin as **Lower to
+  flat**. A motor that needs longer, such as a head that takes 36 seconds to
+  lower, stays unknown after a Flat from an unknown position: hold Flat longer
+  with `hold_control` (`control: flat`, for example `duration: 45`), or set its
+  reference. A STOP, a failed write or any other move during Flat leaves every
+  motor unknown.
 
 Reloading the integration, for example after changing options, keeps tracking
 estimates tracking. A Home Assistant restart does not.

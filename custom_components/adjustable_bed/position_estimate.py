@@ -55,9 +55,10 @@ STANDALONE_KEY: Final = "bed"
 MIN_TRAVEL_S: Final = 1.0
 MAX_TRAVEL_S: Final = 60.0
 MIN_MOVE_MS: Final = 100
-# "Lower to flat" runs past the calibrated time so a slow run still bottoms out.
-LOWER_TO_FLAT_FACTOR: Final = 1.2
-LOWER_TO_FLAT_EXTRA_S: Final = 1.0
+# A move to an end (0% or 100%), "Lower to flat" and a Flat preset run past the
+# calibrated full travel, so a slow run still reaches the end stop.
+END_STOP_FACTOR: Final = 1.2
+END_STOP_EXTRA_S: Final = 1.0
 # A recalled motor further than this from its target did not arrive.
 ARRIVAL_TOLERANCE: Final = 2.0
 MAX_POSITION_NAME_LENGTH: Final = 40
@@ -262,6 +263,33 @@ class BedEstimate:
             if self.motors[motor].calibrated:
                 self.motors[motor].set_reference(now)
         self._owner.changed()
+
+    def tracked_percents(self) -> dict[str, float]:
+        """The percentages of the motors that are tracking now."""
+        return {
+            motor: estimate.percent
+            for motor, estimate in self.motors.items()
+            if estimate.state is EstimateState.TRACKING and estimate.percent is not None
+        }
+
+    def reference_flat(self, held_s: float, before: Mapping[str, float]) -> list[str]:
+        """A completed Flat held every motor down for ``held_s`` seconds.
+
+        A motor whose lowering, with the end-stop margin, fits in that time is
+        flat now and gets its reference. ``before`` holds the tracking
+        estimates from just before the Flat: such a motor only had to lower
+        from there, any other motor from the top. Return the referenced motors;
+        the others keep the unknown estimate the Flat left them with.
+        """
+        flat = [
+            motor
+            for motor, estimate in self.motors.items()
+            if estimate.calibrated
+            and held_s >= end_stop_seconds(estimate, "down", before.get(motor, 100.0))
+        ]
+        if flat:
+            self.set_reference(flat)
+        return flat
 
     def confirm_unchanged(self) -> None:
         """Trust restored estimates after the user confirms the bed has not moved."""
@@ -780,6 +808,9 @@ def track_held_control(
         if bed is None or not bed.motors:
             await command(controller)
             return
+        if control == "flat" and controller.flat_preset_references_estimates:
+            await _run_flat(bed, command, controller)
+            return
         for spec in controller.motor_control_specs:
             hold = spec.hold
             if hold is None or control not in (hold.up_control, hold.down_control):
@@ -820,6 +851,65 @@ def invalidate_on_command(
         await command(controller)
 
     return invalidating
+
+
+def _controller_stop_epoch(controller: BedController) -> int | None:
+    scheduler = getattr(getattr(controller, "_coordinator", None), "_command_scheduler", None)
+    epoch = getattr(scheduler, "stop_epoch", None)
+    return epoch if isinstance(epoch, int) else None
+
+
+def _controller_cancelled(controller: BedController) -> bool:
+    cancel = getattr(getattr(controller, "_coordinator", None), "cancel_command", None)
+    return isinstance(cancel, asyncio.Event) and cancel.is_set()
+
+
+async def _run_flat(bed: BedEstimate, command: MotorCommand, controller: BedController) -> None:
+    """Run a Flat that drives every motor down; set the reference once it completes.
+
+    The estimate is unknown while Flat runs and stays unknown when it fails, a
+    STOP or a replacing command interrupts it, or another move ran meanwhile.
+    """
+    before = bed.tracked_percents()
+    bed.invalidate(EstimateReason.HARDWARE_PRESET)
+    if not bed.motors or not controller.flat_preset_references_estimates:
+        await command(controller)
+        return
+    epoch = _controller_stop_epoch(controller)
+    after = bed.move_counter
+    started = _clock()
+    await command(controller)
+    held_s = _clock() - started
+    if (
+        epoch is None
+        or _controller_stop_epoch(controller) != epoch
+        or _controller_cancelled(controller)
+        or bed.move_counter != after
+        or bed.moving
+    ):
+        return
+    flat = bed.reference_flat(held_s, before)
+    _LOGGER.debug("Flat on %s set the reference of %s", bed.address, flat)
+
+
+def track_flat_preset(hass: HomeAssistant | None, command: MotorCommand) -> MotorCommand:
+    """Wrap the Flat preset: unknown while it runs, flat once a declared Flat completes.
+
+    Only a controller whose Flat holds every motor down to its end stop
+    declares ``flat_preset_references_estimates``. Others treat Flat like any
+    hardware preset.
+    """
+    if not _estimates_active(hass):
+        return command
+
+    async def tracked(controller: BedController) -> None:
+        bed = _bed_for_controller(controller)
+        if bed is None:
+            await command(controller)
+            return
+        await _run_flat(bed, command, controller)
+
+    return tracked
 
 
 # ------------------------------------------------------------------ movement
@@ -992,11 +1082,22 @@ async def async_recall_position(
         )
 
 
+def end_stop_seconds(estimate: MotorEstimate, direction: str, span: float = 100.0) -> float:
+    """Travel over ``span`` percent in ``direction`` plus a margin, bounded like any move.
+
+    With the full span, running this long reaches the end stop from anywhere,
+    whatever drift the estimate has collected.
+    """
+    full = estimate.up_s if direction == "up" else estimate.down_s
+    if full is None:
+        return 0.0
+    travel = full * _clamp(span) / 100
+    return min(MAX_TRAVEL_S, travel * END_STOP_FACTOR + END_STOP_EXTRA_S)
+
+
 def lower_to_flat_seconds(estimate: MotorEstimate) -> float:
     """Full lowering time plus a margin, bounded like any movement."""
-    if estimate.down_s is None:
-        return 0.0
-    return min(MAX_TRAVEL_S, estimate.down_s * LOWER_TO_FLAT_FACTOR + LOWER_TO_FLAT_EXTRA_S)
+    return end_stop_seconds(estimate, "down")
 
 
 async def async_measure_move(

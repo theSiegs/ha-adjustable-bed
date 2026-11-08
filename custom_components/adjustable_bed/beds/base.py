@@ -736,6 +736,17 @@ class BedController(GattWriter):
         return True
 
     @property
+    def flat_preset_references_estimates(self) -> bool:
+        """Whether a completed Flat preset leaves every motor at its lower end stop.
+
+        Declare this only where Flat holds the motors down for a known time, so
+        an uninterrupted Flat proves the bed flat. Estimated positions then set
+        the reference of each motor whose lowering fits in the time Flat ran. A
+        Flat that the box could end early, such as a recall, does not qualify.
+        """
+        return False
+
+    @property
     def supports_preset_zero_g(self) -> bool:
         """Return True if bed supports zero gravity preset."""
         return False
