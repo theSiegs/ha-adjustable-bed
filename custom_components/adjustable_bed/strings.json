@@ -1314,7 +1314,9 @@
           "feet": "Feet",
           "measure": "Measure travel times now",
           "acknowledge": "I understand that positions are estimated",
-          "tv_lift": "TV lift"
+          "tv_lift": "TV lift",
+          "lumbar": "Lumbar",
+          "pillow": "Pillow"
         },
         "data_description": {
           "measure": "Raise and lower each motor once and tap when it stops. Leave this off to type the times yourself.",
@@ -1331,7 +1333,9 @@
           "feet": "Feet",
           "measure": "Measure travel times now",
           "acknowledge": "I understand that positions are estimated",
-          "tv_lift": "TV lift"
+          "tv_lift": "TV lift",
+          "lumbar": "Lumbar",
+          "pillow": "Pillow"
         },
         "data_description": {
           "measure": "Raise and lower each motor once and tap when it stops. Leave this off to type the times yourself.",
@@ -1348,7 +1352,9 @@
           "feet": "Feet",
           "measure": "Measure travel times now",
           "acknowledge": "I understand that positions are estimated",
-          "tv_lift": "TV lift"
+          "tv_lift": "TV lift",
+          "lumbar": "Lumbar",
+          "pillow": "Pillow"
         },
         "data_description": {
           "measure": "Raise and lower each motor once and tap when it stops. Leave this off to type the times yourself.",
@@ -1409,7 +1415,11 @@
           "feet_up": "Feet, full travel up",
           "feet_down": "Feet, full travel down",
           "tv_lift_up": "TV lift, full travel up",
-          "tv_lift_down": "TV lift, full travel down"
+          "tv_lift_down": "TV lift, full travel down",
+          "lumbar_up": "Lumbar, full travel up",
+          "lumbar_down": "Lumbar, full travel down",
+          "pillow_up": "Pillow, full travel up",
+          "pillow_down": "Pillow, full travel down"
         }
       }
     },
@@ -2387,6 +2397,12 @@
       },
       "set_feet_reference": {
         "name": "Set feet reference"
+      },
+      "set_lumbar_reference": {
+        "name": "Set lumbar reference"
+      },
+      "set_pillow_reference": {
+        "name": "Set pillow reference"
       },
       "estimate_remote_used": {
         "name": "I used the remote"
@@ -4961,6 +4977,12 @@
       },
       "feet_position_estimated": {
         "name": "Feet position (estimated)"
+      },
+      "lumbar_position_estimated": {
+        "name": "Lumbar position (estimated)"
+      },
+      "pillow_position_estimated": {
+        "name": "Pillow position (estimated)"
       },
       "goodvibe_snore_count": {
         "name": "Snore intervention count"

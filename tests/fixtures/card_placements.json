@@ -1314,6 +1314,16 @@
   "card_role": "reference",
   "card_motor": "legs"
  },
+ "button:set_lumbar_reference": {
+  "card_section": "motors",
+  "card_role": "reference",
+  "card_motor": "lumbar"
+ },
+ "button:set_pillow_reference": {
+  "card_section": "motors",
+  "card_role": "reference",
+  "card_motor": "pillow"
+ },
  "button:set_tv_lift_reference": {
   "card_section": "motors",
   "card_role": "reference",
@@ -2204,6 +2214,11 @@
   "card_section": "motors",
   "card_motor": "lumbar"
  },
+ "number:lumbar_position_estimated": {
+  "card_section": "motors",
+  "card_role": "estimate",
+  "card_motor": "lumbar"
+ },
  "number:massage_foot_intensity": {
   "card_section": "massage"
  },
@@ -2269,6 +2284,11 @@
  },
  "number:octo_light_duration": {
   "card_section": "hidden"
+ },
+ "number:pillow_position_estimated": {
+  "card_section": "motors",
+  "card_role": "estimate",
+  "card_motor": "pillow"
  },
  "number:reverie_body_tilt": {
   "card_section": "motors",

@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Final
 
@@ -407,6 +407,20 @@ class LeggettOkinController(ProfileExecution[OkinNFrameProfile], BedController):
             if (spec.key != "pillow" or self.has_pillow_support)
             and (spec.key != "lumbar" or self.has_lumbar_support)
         )
+
+    @property
+    def estimated_position_motor_groups(self) -> Mapping[str, tuple[str, ...]]:
+        """Prodigy CE's CU170 moves a motor only while its key streams.
+
+        Each motor key is directional, the four zero frames release it, and the
+        box's 217-218 ms motion watchdog (#368, #516) stops a motor whose frames
+        stop, so a move ends when the integration ends it. Held keys combine,
+        and the merged stream times each motor on its own. The other Leggett
+        apps lack that hardware evidence and declare no estimated motors.
+        """
+        if self._app_profile != "prodigy4":
+            return {}
+        return {spec.key: (spec.key,) for spec in self.motor_control_specs}
 
     def _available_characteristic_uuids(self) -> frozenset[str] | None:
         """Return discovered characteristic UUIDs, or None before discovery."""

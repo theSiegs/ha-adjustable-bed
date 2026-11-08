@@ -28,6 +28,7 @@ example when the bed is flat at night.
 |-----|------------------|
 | [OCTO Smart Control](beds/octo.md) (Standard variant) | TV lift, back, legs, head and feet; the combined steps update every motor they move |
 | [Richmat](beds/richmat.md) remote-code profiles | Head and feet; the combined head and feet step updates both |
+| [Leggett Okin](beds/okin-nframe.md#prodigy-ce-prodigy-4) Prodigy CE (CU170) | Head, feet, lumbar and pillow, each timed on its own while they move together |
 
 A motor qualifies only when its protocol has reliable directional movement and
 its own STOP. Other beds may follow once that is established for their
@@ -39,8 +40,8 @@ Beds with position feedback do not need it.
 A paired bed with two Bluetooth addresses is supported, and each side is
 calibrated on its own. No single-address paired bed (one controller with Left
 and Right sides behind one address) supports estimates yet. Only the OCTO
-Standard and Richmat remote-code controllers declare estimated motors, and
-neither forms a single-address pair. A single-address family becomes eligible
+Standard, Richmat remote-code and Leggett Okin Prodigy CE controllers declare
+estimated motors, and none forms a single-address pair. A single-address family becomes eligible
 only after accepted protocol audit evidence proves its STOP and release
 behavior.
 

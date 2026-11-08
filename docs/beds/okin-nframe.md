@@ -1715,6 +1715,12 @@ as below.
   Press-and-release stays available.
 - Successful recalls keep the app's burst; explicit interruption needs the DUMMY
   key, while cancellation or a write failure uses the zero cleanup.
+- **Estimated positions:** head, feet, lumbar and pillow can be calibrated for
+  [estimated positions](../ESTIMATED_POSITIONS.md), each with its own raising and
+  lowering time. A motor moves only while its key streams, the four zero frames
+  release it, and the box stops a motor 217 to 218 ms after its last frame, so
+  the integration knows when every move ended. The other Leggett apps declare no
+  estimated motors.
 
 #### Notifications
 

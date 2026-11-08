@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-ESTIMATE_MOTORS = ("back", "legs", "head", "feet", "tv_lift")
+ESTIMATE_MOTORS = ("back", "legs", "head", "feet", "lumbar", "pillow", "tv_lift")
 CONF_ACKNOWLEDGE = "acknowledge"
 CONF_MEASURE = "measure"
 _STOP_TIMEOUT_S = 10.0

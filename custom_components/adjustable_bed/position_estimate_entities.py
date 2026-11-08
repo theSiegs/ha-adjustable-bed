@@ -53,6 +53,8 @@ ESTIMATED_MOTOR_ICONS = {
     "legs": "mdi:human-handsdown",
     "head": "mdi:head",
     "feet": "mdi:foot-print",
+    "lumbar": "mdi:lumbar-vertebrae",
+    "pillow": "mdi:pillow",
 }
 
 

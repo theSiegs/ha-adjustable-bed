@@ -2849,6 +2849,10 @@ set_position_reference:
               label: Head
             - value: feet
               label: Feet
+            - value: lumbar
+              label: Lumbar
+            - value: pillow
+              label: Pillow
 
 confirm_position_unchanged:
   fields:
