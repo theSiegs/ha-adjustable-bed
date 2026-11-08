@@ -78,6 +78,8 @@ ALARM_INDICATOR: Final = StateKey[bool]("leggett_alarm_indicator")
 SLEEP_TIMER_INDICATOR: Final = StateKey[bool]("leggett_sleep_timer_indicator")
 
 
+LEGGETT_STREAM_TICK_MS = 50
+
 class MotorDirection(Enum):
     """Direction for motor movement."""
 
@@ -845,7 +847,11 @@ class LeggettOkinController(ProfileExecution[OkinNFrameProfile], BedController):
     # word; releasing a key sends the next word without its bit.
     @property
     def stream_tick_s(self) -> float:
-        return LEGGETT_REFRESH_MS / 1000
+        # Experimental (#916): the CU170 stops a motor when no fresh held frame
+        # arrives within about 217 ms. At 100 ms one late or lost frame over a
+        # proxy stops the motor; at 50 ms two can go missing first. The stream
+        # is time based, so move durations are unchanged.
+        return LEGGETT_STREAM_TICK_MS / 1000
 
     def _stream_word(self, members: tuple[StreamMember, ...]) -> int:
         word = 0
