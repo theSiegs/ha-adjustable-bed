@@ -405,3 +405,34 @@ async def test_a_stopped_overrun_does_not_re_reference(
     # The estimate reaches 0%, but only a full overrun proves the end stop.
     assert bed.motors["pillow"].percent == 0.0
     assert bed.motors["pillow"].moves_since_reference == 1
+
+
+async def test_connecting_and_gaps_between_moves_are_not_travel(
+    make_runtime,  # noqa: F811 - pytest fixture argument
+    clock,  # noqa: F811 - pytest fixture argument
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the time the motor is commanded counts, from its first frame to its release.
+
+    A slow (re)connect before each move and the pause between two chained
+    timed moves add nothing to the estimate.
+    """
+    hass, coordinator, frames, bed = await _estimated_runtime(make_runtime, clock, monkeypatch)
+
+    async def slow_connect(*_args: object, **_kwargs: object) -> bool:
+        await asyncio.sleep(5)
+        return True
+
+    monkeypatch.setattr(coordinator, "async_ensure_connected", slow_connect)
+    try:
+        bed.set_reference()
+        started = clock.time()
+        await asyncio.wait_for(_timed_move(hass, "lumbar", "up", 1300), 30)
+        await asyncio.sleep(3.5)
+        await asyncio.wait_for(_timed_move(hass, "lumbar", "up", 1300), 30)
+        # Two connects and the pause took far longer than the 2.6 s of travel.
+        assert clock.time() - started > 10
+        assert bed.motors["lumbar"].percent == pytest.approx(20.0)  # 2.6 s of 13 s
+        assert bed.motors["lumbar"].moves_since_reference == 2
+    finally:
+        await pe.async_unload_position_estimates(hass, coordinator.entry.entry_id)
